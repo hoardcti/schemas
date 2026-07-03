@@ -254,10 +254,10 @@
         "technique": {
             "title": "ATT&CK Technique",
             "type": "object",
-            "required": ["technique_id"],
+            "required": ["id"],
             "additionalProperties": false,
             "properties": {
-                "technique_id": {
+                "id": {
                     "description": "MITRE ATT&CK technique or sub-technique identifier (e.g. 'T1566', 'T1566.001').",
                     "type": "string",
                     "pattern": "^T[0-9]{4}(\\.[0-9]{3})?$"
