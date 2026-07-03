@@ -346,7 +346,79 @@
                         "$ref": "#/$defs/reference"
                     }
                 }
-            }
+            },
+            "allOf": [
+                {
+                    "if": {
+                        "properties": {
+                            "type": {
+                                "const": "member_of"
+                            }
+                        },
+                        "required": ["type"]
+                    },
+                    "then": {
+                        "properties": {
+                            "source_ref": {
+                                "properties": {
+                                    "kind": {
+                                        "const": "actor"
+                                    }
+                                }
+                            },
+                            "target_ref": {
+                                "properties": {
+                                    "kind": {
+                                        "const": "actor"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                {
+                    "if": {
+                        "properties": {
+                            "type": {
+                                "const": "exploits"
+                            }
+                        },
+                        "required": ["type"]
+                    },
+                    "then": {
+                        "properties": {
+                            "target_ref": {
+                                "properties": {
+                                    "kind": {
+                                        "const": "cve"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                {
+                    "if": {
+                        "properties": {
+                            "type": {
+                                "const": "targets"
+                            }
+                        },
+                        "required": ["type"]
+                    },
+                    "then": {
+                        "properties": {
+                            "target_ref": {
+                                "properties": {
+                                    "kind": {
+                                        "enum": ["sector", "country", "organization"]
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            ]
         },
         "entity_ref": {
             "title": "Entity Reference",
