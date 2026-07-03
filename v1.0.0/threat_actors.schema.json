@@ -297,7 +297,7 @@
         },
         "relationship": {
             "title": "Relationship",
-            "description": "A directed, typed link from one entity to another. Membership: individual member_of group. Group-to-group: affiliated_with, cooperates_with, successor_of. Capability: uses / develops malware, tools, techniques or infrastructure; exploits CVEs; linked_to IOCs. Victimology: targets sectors, countries or organizations. Attribution: attributed_to a country or another actor.",
+            "description": "A directed, typed link from one entity to another. Membership: individual member_of group. Group-to-group: affiliated_with, cooperates_with, successor_of. Deception: impersonates. Capability: uses / develops malware, tools, techniques or infrastructure; exploits CVEs; linked_to IOCs. Victimology: targets sectors, countries or organizations. Attribution: attributed_to a country or another actor.",
             "type": "object",
             "required": ["type", "source_ref", "target_ref"],
             "additionalProperties": false,
