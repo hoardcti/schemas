@@ -1,6 +1,475 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://schema.hoardcti.com/v1.0.0/cve.schema.json",
     "title": "HoardCTI CVE Schema",
-    "id": "https://schema.hoardcti.com/v1.0.0/cve.schema.json",
-    "description": "A schema for representing Common Vulnerabilities and Exposures (CVEs) in JSON format."
+    "description": "Standardized transport format for transferring one or more Common Vulnerabilities and Exposures (CVE) records from a CVE source aggregator to the HoardCTI central server.",
+    "type": "object",
+    "required": ["schema_version", "source", "generated_at", "cves"],
+    "additionalProperties": false,
+    "properties": {
+        "schema_version": {
+            "description": "Version of the HoardCTI CVE schema this payload conforms to.",
+            "const": "1.0.0"
+        },
+        "source": {
+            "$ref": "#/$defs/source"
+        },
+        "generated_at": {
+            "description": "UTC timestamp at which the aggregator produced this payload.",
+            "type": "string",
+            "format": "date-time"
+        },
+        "batch_id": {
+            "description": "Unique identifier for this transfer batch, used for idempotency and de-duplication on the server side.",
+            "type": "string",
+            "format": "uuid"
+        },
+        "count": {
+            "description": "Number of CVE records in this payload. Must equal the length of the cves array if present.",
+            "type": "integer",
+            "minimum": 0
+        },
+        "cves": {
+            "description": "The CVE records being transferred.",
+            "type": "array",
+            "minItems": 1,
+            "items": {
+                "$ref": "#/$defs/cve"
+            }
+        }
+    },
+    "$defs": {
+        "source": {
+            "title": "Source",
+            "description": "Identifies the aggregator repo/script that produced this payload.",
+            "type": "object",
+            "required": ["name"],
+            "additionalProperties": false,
+            "properties": {
+                "name": {
+                    "description": "Canonical name of the ingest source (e.g. 'nvd', 'mitre-cvelist', 'github-advisories').",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "repository": {
+                    "description": "URL of the ingest repo that generated this payload.",
+                    "type": "string",
+                    "format": "uri"
+                },
+                "feed_url": {
+                    "description": "Upstream feed or API endpoint the data was aggregated from.",
+                    "type": "string",
+                    "format": "uri"
+                },
+                "aggregator_version": {
+                    "description": "Version of the aggregator script that produced this payload.",
+                    "type": "string"
+                }
+            }
+        },
+        "cve": {
+            "title": "CVE Record",
+            "type": "object",
+            "required": ["id", "state", "descriptions", "last_modified"],
+            "additionalProperties": false,
+            "properties": {
+                "id": {
+                    "description": "The CVE identifier.",
+                    "type": "string",
+                    "pattern": "^CVE-[0-9]{4}-[0-9]{4,}$"
+                },
+                "state": {
+                    "description": "Lifecycle state of the CVE record.",
+                    "type": "string",
+                    "enum": ["PUBLISHED", "RESERVED", "REJECTED", "DISPUTED"]
+                },
+                "title": {
+                    "description": "Short human-readable summary of the vulnerability.",
+                    "type": "string"
+                },
+                "assigner": {
+                    "description": "The CNA (CVE Numbering Authority) that assigned this CVE.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "org_id": {
+                            "description": "CNA organization UUID as assigned by MITRE.",
+                            "type": "string"
+                        },
+                        "short_name": {
+                            "description": "CNA short name (e.g. 'mitre', 'GitHub_M').",
+                            "type": "string"
+                        }
+                    }
+                },
+                "published": {
+                    "description": "UTC timestamp at which the CVE was first published upstream.",
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "last_modified": {
+                    "description": "UTC timestamp of the most recent upstream modification to this record.",
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "descriptions": {
+                    "description": "Vulnerability descriptions, one per language.",
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "$ref": "#/$defs/description"
+                    }
+                },
+                "metrics": {
+                    "description": "Severity scores for this vulnerability. Each array may contain scores from multiple scoring sources (e.g. NVD and the CNA).",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "cvss_v2": {
+                            "type": "array",
+                            "items": { "$ref": "#/$defs/cvss" }
+                        },
+                        "cvss_v3": {
+                            "type": "array",
+                            "items": { "$ref": "#/$defs/cvss" }
+                        },
+                        "cvss_v4": {
+                            "type": "array",
+                            "items": { "$ref": "#/$defs/cvss" }
+                        },
+                        "epss": {
+                            "$ref": "#/$defs/epss"
+                        }
+                    }
+                },
+                "weaknesses": {
+                    "description": "Weakness classifications (CWE) associated with this CVE.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/$defs/weakness"
+                    }
+                },
+                "affected": {
+                    "description": "Products, vendors and version ranges affected by this vulnerability.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/$defs/affected_product"
+                    }
+                },
+                "references": {
+                    "description": "External references: advisories, patches, exploits, articles.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/$defs/reference"
+                    }
+                },
+                "exploitation": {
+                    "$ref": "#/$defs/exploitation"
+                },
+                "credits": {
+                    "description": "People or organizations credited with discovery or remediation.",
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "required": ["name"],
+                        "additionalProperties": false,
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "minLength": 1
+                            },
+                            "type": {
+                                "description": "Nature of the contribution.",
+                                "type": "string",
+                                "enum": ["finder", "reporter", "analyst", "coordinator", "remediation_developer", "remediation_reviewer", "remediation_verifier", "tool", "sponsor", "other"]
+                            }
+                        }
+                    }
+                },
+                "tags": {
+                    "description": "Free-form tags applied by the aggregator (e.g. 'ics', 'supply-chain').",
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    "uniqueItems": true
+                },
+                "provenance": {
+                    "$ref": "#/$defs/provenance"
+                }
+            }
+        },
+        "description": {
+            "title": "Description",
+            "type": "object",
+            "required": ["lang", "value"],
+            "additionalProperties": false,
+            "properties": {
+                "lang": {
+                    "description": "BCP 47 language tag (e.g. 'en', 'es').",
+                    "type": "string",
+                    "minLength": 2
+                },
+                "value": {
+                    "description": "The description text.",
+                    "type": "string",
+                    "minLength": 1
+                }
+            }
+        },
+        "cvss": {
+            "title": "CVSS Score",
+            "type": "object",
+            "required": ["version", "vector_string", "base_score"],
+            "additionalProperties": false,
+            "properties": {
+                "version": {
+                    "description": "Exact CVSS specification version.",
+                    "type": "string",
+                    "enum": ["2.0", "3.0", "3.1", "4.0"]
+                },
+                "vector_string": {
+                    "description": "Full CVSS vector string (e.g. 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H').",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "base_score": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 10
+                },
+                "base_severity": {
+                    "description": "Qualitative severity rating derived from the base score. Not applicable to CVSS v2.",
+                    "type": "string",
+                    "enum": ["NONE", "LOW", "MEDIUM", "HIGH", "CRITICAL"]
+                },
+                "exploitability_score": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 10
+                },
+                "impact_score": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 10
+                },
+                "scoring_source": {
+                    "description": "Who produced this score (e.g. 'nvd@nist.gov', CNA email/name).",
+                    "type": "string"
+                },
+                "type": {
+                    "description": "Whether the score came from the primary source (e.g. NVD) or a secondary one (e.g. the CNA).",
+                    "type": "string",
+                    "enum": ["primary", "secondary"]
+                }
+            }
+        },
+        "epss": {
+            "title": "EPSS Score",
+            "description": "Exploit Prediction Scoring System data from FIRST.org.",
+            "type": "object",
+            "required": ["score", "percentile"],
+            "additionalProperties": false,
+            "properties": {
+                "score": {
+                    "description": "Probability of exploitation in the wild in the next 30 days.",
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                },
+                "percentile": {
+                    "description": "Percentile rank of this score among all scored CVEs.",
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                },
+                "date": {
+                    "description": "Date the EPSS score was calculated.",
+                    "type": "string",
+                    "format": "date"
+                }
+            }
+        },
+        "weakness": {
+            "title": "Weakness",
+            "type": "object",
+            "required": ["cwe_id"],
+            "additionalProperties": false,
+            "properties": {
+                "cwe_id": {
+                    "description": "CWE identifier, or the NVD placeholders 'NVD-CWE-noinfo' / 'NVD-CWE-Other'.",
+                    "type": "string",
+                    "pattern": "^(CWE-[0-9]+|NVD-CWE-noinfo|NVD-CWE-Other)$"
+                },
+                "description": {
+                    "description": "Human-readable CWE name (e.g. 'SQL Injection').",
+                    "type": "string"
+                },
+                "source": {
+                    "description": "Who assigned this weakness classification.",
+                    "type": "string"
+                }
+            }
+        },
+        "affected_product": {
+            "title": "Affected Product",
+            "type": "object",
+            "required": ["vendor", "product"],
+            "additionalProperties": false,
+            "properties": {
+                "vendor": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "product": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "platforms": {
+                    "description": "Platforms the product is affected on (e.g. 'Windows', 'x86').",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "cpes": {
+                    "description": "CPE 2.3 formatted strings identifying this product.",
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "pattern": "^cpe:2\\.3:[aho*\\-](:[^:]+){10}$"
+                    }
+                },
+                "default_status": {
+                    "description": "Status assumed for versions not listed in the versions array.",
+                    "type": "string",
+                    "enum": ["affected", "unaffected", "unknown"]
+                },
+                "versions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/$defs/version_range"
+                    }
+                }
+            }
+        },
+        "version_range": {
+            "title": "Version Range",
+            "description": "A single version or range of versions with a shared status. Range bounds are expressed with less_than / less_than_or_equal relative to the starting version.",
+            "type": "object",
+            "required": ["version", "status"],
+            "additionalProperties": false,
+            "properties": {
+                "version": {
+                    "description": "Exact version, or the start of a range when a bound field is present. '*' means all versions.",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "status": {
+                    "type": "string",
+                    "enum": ["affected", "unaffected", "unknown"]
+                },
+                "less_than": {
+                    "description": "Exclusive upper bound of the range.",
+                    "type": "string"
+                },
+                "less_than_or_equal": {
+                    "description": "Inclusive upper bound of the range.",
+                    "type": "string"
+                },
+                "version_type": {
+                    "description": "Versioning scheme used to interpret the bounds (e.g. 'semver', 'git', 'custom').",
+                    "type": "string"
+                }
+            },
+            "not": {
+                "required": ["less_than", "less_than_or_equal"]
+            }
+        },
+        "reference": {
+            "title": "Reference",
+            "type": "object",
+            "required": ["url"],
+            "additionalProperties": false,
+            "properties": {
+                "url": {
+                    "type": "string",
+                    "format": "uri"
+                },
+                "name": {
+                    "description": "Display name or title of the reference.",
+                    "type": "string"
+                },
+                "source": {
+                    "description": "Who supplied this reference.",
+                    "type": "string"
+                },
+                "tags": {
+                    "description": "Categorization of the reference content.",
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "enum": ["advisory", "patch", "exploit", "mitigation", "vendor", "third-party", "technical-description", "mailing-list", "issue-tracking", "press", "government-resource", "tool", "other"]
+                    },
+                    "uniqueItems": true
+                }
+            }
+        },
+        "exploitation": {
+            "title": "Exploitation Intelligence",
+            "description": "Enrichment describing real-world exploitation of this CVE.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "known_exploited": {
+                    "description": "True if the CVE is known to be exploited in the wild (e.g. listed in CISA KEV).",
+                    "type": "boolean"
+                },
+                "kev_date_added": {
+                    "description": "Date the CVE was added to the CISA Known Exploited Vulnerabilities catalog.",
+                    "type": "string",
+                    "format": "date"
+                },
+                "kev_due_date": {
+                    "description": "CISA KEV remediation due date for US federal agencies.",
+                    "type": "string",
+                    "format": "date"
+                },
+                "ransomware_use": {
+                    "description": "Whether the CVE is known to be used in ransomware campaigns.",
+                    "type": "string",
+                    "enum": ["known", "unknown"]
+                },
+                "exploit_available": {
+                    "description": "True if a public exploit or proof-of-concept exists.",
+                    "type": "boolean"
+                }
+            }
+        },
+        "provenance": {
+            "title": "Provenance",
+            "description": "Where and when the aggregator retrieved this specific record.",
+            "type": "object",
+            "required": ["retrieved_at"],
+            "additionalProperties": false,
+            "properties": {
+                "retrieved_at": {
+                    "description": "UTC timestamp at which the aggregator fetched this record from upstream.",
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "upstream_url": {
+                    "description": "Direct URL to the upstream record this was derived from.",
+                    "type": "string",
+                    "format": "uri"
+                },
+                "raw_hash": {
+                    "description": "SHA-256 hex digest of the raw upstream record, for change detection.",
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                }
+            }
+        }
+    }
 }
