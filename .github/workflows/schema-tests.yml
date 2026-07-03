@@ -1,0 +1,89 @@
+# Validates schema files with the Go test suite in tests/.
+#
+# On pull requests this job is a required status check, so it must run on
+# every PR (a path-filtered workflow that never starts would leave the check
+# "Expected" and block the merge forever). Instead, the job itself works out
+# which schema files the PR changed and:
+#
+#   - tests only those files (SCHEMA_FILES env var),
+#   - re-tests everything when the suite or this workflow changed,
+#   - skips the test steps entirely (reporting success) when nothing
+#     relevant changed.
+#
+# On pushes to main the full suite always runs as a safety net.
+name: schema-tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate schemas
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tests
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          # Full history so the PR can be diffed against its merge base.
+          fetch-depth: 0
+
+      - name: Determine which schema files to test
+        id: changes
+        shell: bash
+        working-directory: .
+        run: |
+          set -euo pipefail
+
+          # Pushes to main always validate the whole repository.
+          if [[ "${{ github.event_name }}" != "pull_request" ]]; then
+            echo "mode=all" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          base="origin/${{ github.base_ref }}"
+
+          # Changes to the suite or this workflow invalidate everything.
+          if ! git diff --quiet "$base"...HEAD -- tests .github/workflows/schema-tests.yml; then
+            echo "mode=all" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Schema files added, copied, modified or renamed in this PR.
+          # Deleted files are excluded: there is nothing left to validate.
+          files=$(git diff --name-only --diff-filter=ACMR "$base"...HEAD \
+            -- '*.schema.json' 'schema.json' '*/schema.json' | paste -sd, -)
+
+          if [[ -z "$files" ]]; then
+            echo "No schema files changed; skipping validation."
+            echo "mode=skip" >> "$GITHUB_OUTPUT"
+          else
+            echo "Schema files to validate: $files"
+            echo "mode=changed" >> "$GITHUB_OUTPUT"
+            echo "files=$files" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Go
+        if: steps.changes.outputs.mode != 'skip'
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: tests/go.mod
+          cache-dependency-path: tests/go.sum
+
+      - name: Vet
+        if: steps.changes.outputs.mode != 'skip'
+        run: go vet ./...
+
+      - name: Run schema tests
+        if: steps.changes.outputs.mode != 'skip'
+        env:
+          # Empty means "test every schema file in the repository".
+          SCHEMA_FILES: ${{ steps.changes.outputs.mode == 'changed' && steps.changes.outputs.files || '' }}
+        run: go test -v ./...
