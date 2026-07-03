@@ -1,0 +1,6 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "HoardCTI CVE Schema",
+    "id": "https://schema.hoardcti.com/v1.0.0/cve.schema.json",
+    "description": "A schema for representing Common Vulnerabilities and Exposures (CVEs) in JSON format."
+}
