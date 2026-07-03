@@ -303,7 +303,7 @@
             "additionalProperties": false,
             "properties": {
                 "id": {
-                    "description": "Unique identifier for this relationship, used for de-duplication on the server side.",
+                    "description": "Optional stable identifier for this relationship. When present it must be stable across batches (e.g. a UUIDv5 derived from type, source_ref and target_ref); when absent the server deduplicates by the (type, source_ref, target_ref) triple.",
                     "type": "string",
                     "format": "uuid"
                 },
@@ -375,6 +375,23 @@
                 }
             },
             "allOf": [
+                {
+                    "if": {
+                        "properties": {
+                            "kind": {
+                                "const": "actor"
+                            }
+                        },
+                        "required": ["kind"]
+                    },
+                    "then": {
+                        "properties": {
+                            "id": {
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+                            }
+                        }
+                    }
+                },
                 {
                     "if": {
                         "properties": {
