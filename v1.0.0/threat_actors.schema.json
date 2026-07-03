@@ -1,0 +1,662 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://schema.hoardcti.com/v1.0.0/threat_actors.schema.json",
+    "title": "HoardCTI Threat Actor Schema",
+    "description": "Standardized transport format for transferring threat actors, threat actor groups, their relationships (group membership, linked malware, IOCs, exploited CVEs, targets) and related news articles from the threat_actors source aggregator to the HoardCTI central server.",
+    "type": "object",
+    "required": ["schema_version", "source", "generated_at", "actors"],
+    "additionalProperties": false,
+    "properties": {
+        "schema_version": {
+            "description": "Version of the HoardCTI threat actor schema this payload conforms to.",
+            "const": "1.0.0"
+        },
+        "source": {
+            "$ref": "#/$defs/source"
+        },
+        "generated_at": {
+            "description": "UTC timestamp at which the aggregator produced this payload.",
+            "type": "string",
+            "format": "date-time"
+        },
+        "batch_id": {
+            "description": "Unique identifier for this transfer batch, used for idempotency and de-duplication on the server side.",
+            "type": "string",
+            "format": "uuid"
+        },
+        "count": {
+            "description": "Number of actor records in this payload. Must equal the length of the actors array if present.",
+            "type": "integer",
+            "minimum": 0
+        },
+        "actors": {
+            "description": "The threat actor and threat actor group records being transferred.",
+            "type": "array",
+            "minItems": 1,
+            "items": {
+                "$ref": "#/$defs/actor"
+            }
+        },
+        "relationships": {
+            "description": "Relationships between actors in this payload and other entities: group membership, linked malware, IOCs, exploited CVEs, targeted sectors and countries.",
+            "type": "array",
+            "items": {
+                "$ref": "#/$defs/relationship"
+            }
+        },
+        "articles": {
+            "description": "News articles covering the actors and groups in this payload.",
+            "type": "array",
+            "items": {
+                "$ref": "#/$defs/article"
+            }
+        }
+    },
+    "$defs": {
+        "source": {
+            "title": "Source",
+            "description": "Identifies the aggregator repo/script that produced this payload.",
+            "type": "object",
+            "required": ["name"],
+            "additionalProperties": false,
+            "properties": {
+                "name": {
+                    "description": "Canonical name of the ingest source (e.g. 'mitre-attack', 'malpedia', 'etda').",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "repository": {
+                    "description": "URL of the ingest repo that generated this payload.",
+                    "type": "string",
+                    "format": "uri"
+                },
+                "feed_url": {
+                    "description": "Upstream feed or API endpoint the data was aggregated from.",
+                    "type": "string",
+                    "format": "uri"
+                },
+                "aggregator_version": {
+                    "description": "Version of the aggregator script that produced this payload.",
+                    "type": "string"
+                }
+            }
+        },
+        "actor": {
+            "title": "Threat Actor Record",
+            "description": "A single threat actor: either an individual or a group (intrusion set). Individuals are tied to groups through member_of relationships rather than nesting.",
+            "type": "object",
+            "required": ["id", "type", "name"],
+            "additionalProperties": false,
+            "properties": {
+                "id": {
+                    "description": "Stable identifier for this actor within the feed. Relationships reference actors by this value, so it must not change between payloads.",
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+                },
+                "type": {
+                    "description": "Whether this record describes an individual person or a group (intrusion set).",
+                    "type": "string",
+                    "enum": ["individual", "group"]
+                },
+                "name": {
+                    "description": "Primary name the actor is tracked under (e.g. 'APT28', 'Lazarus Group').",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "aliases": {
+                    "description": "Other names the actor is known by across vendors (e.g. 'Fancy Bear', 'STRONTIUM', 'Sofacy').",
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    "uniqueItems": true
+                },
+                "description": {
+                    "description": "Free-text profile of the actor: history, notable operations, tradecraft.",
+                    "type": "string"
+                },
+                "first_seen": {
+                    "description": "UTC timestamp of the earliest known activity attributed to this actor.",
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "last_seen": {
+                    "description": "UTC timestamp of the most recent known activity attributed to this actor.",
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "activity_status": {
+                    "description": "Whether the actor is believed to still be operating.",
+                    "type": "string",
+                    "enum": ["active", "dormant", "retired", "unknown"]
+                },
+                "motivations": {
+                    "description": "What drives the actor's activity.",
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "enum": ["financial-gain", "espionage", "hacktivism", "ideology", "destruction", "notoriety", "personal-gain", "personal-satisfaction", "revenge", "coercion", "dominance", "organizational-gain", "accidental", "unpredictable", "unknown"]
+                    },
+                    "uniqueItems": true
+                },
+                "sophistication": {
+                    "description": "Skill level of the actor, from script kiddie to nation-state innovator.",
+                    "type": "string",
+                    "enum": ["none", "minimal", "intermediate", "advanced", "expert", "innovator", "strategic"]
+                },
+                "resource_level": {
+                    "description": "Organizational level of the resources available to the actor.",
+                    "type": "string",
+                    "enum": ["individual", "club", "contest", "team", "organization", "government"]
+                },
+                "roles": {
+                    "description": "Roles the actor plays in operations.",
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "enum": ["agent", "director", "independent", "infrastructure-architect", "infrastructure-operator", "malware-author", "sponsor"]
+                    },
+                    "uniqueItems": true
+                },
+                "goals": {
+                    "description": "Stated or assessed objectives of the actor (e.g. 'theft of defense IP').",
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "minLength": 1
+                    }
+                },
+                "suspected_origin": {
+                    "$ref": "#/$defs/attribution"
+                },
+                "target_sectors": {
+                    "description": "Industry sectors the actor is known to target (e.g. 'energy', 'finance', 'government').",
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    "uniqueItems": true
+                },
+                "target_countries": {
+                    "description": "ISO 3166-1 alpha-2 codes of countries the actor is known to target.",
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "pattern": "^[A-Z]{2}$"
+                    },
+                    "uniqueItems": true
+                },
+                "techniques": {
+                    "description": "MITRE ATT&CK techniques the actor is known to use. Prefer relationships of type 'uses' when confidence or sighting dates matter; this inline list is for simple technique inventories.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/$defs/technique"
+                    }
+                },
+                "external_ids": {
+                    "description": "Identifiers for this actor in external knowledge bases (e.g. MITRE ATT&CK group G0007, Malpedia, vendor tracking names).",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/$defs/external_id"
+                    }
+                },
+                "references": {
+                    "description": "External references: vendor profiles, reports, indictments, news coverage.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/$defs/reference"
+                    }
+                },
+                "confidence": {
+                    "$ref": "#/$defs/confidence"
+                },
+                "revoked": {
+                    "description": "True if the upstream source has withdrawn this actor record (e.g. merged into another actor).",
+                    "type": "boolean"
+                },
+                "tags": {
+                    "description": "Free-form tags applied by the aggregator (e.g. 'ransomware', 'apt').",
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    "uniqueItems": true
+                },
+                "provenance": {
+                    "$ref": "#/$defs/provenance"
+                }
+            }
+        },
+        "attribution": {
+            "title": "Suspected Origin",
+            "description": "Assessed origin of an actor. Attribution is rarely certain, so every claim carries a confidence rating.",
+            "type": "object",
+            "required": ["country"],
+            "additionalProperties": false,
+            "properties": {
+                "country": {
+                    "description": "ISO 3166-1 alpha-2 code of the suspected country of origin.",
+                    "type": "string",
+                    "pattern": "^[A-Z]{2}$"
+                },
+                "statement": {
+                    "description": "Free-text attribution statement (e.g. 'assessed to be GRU Unit 26165').",
+                    "type": "string"
+                },
+                "confidence": {
+                    "$ref": "#/$defs/confidence"
+                }
+            }
+        },
+        "technique": {
+            "title": "ATT&CK Technique",
+            "type": "object",
+            "required": ["id"],
+            "additionalProperties": false,
+            "properties": {
+                "id": {
+                    "description": "MITRE ATT&CK technique or sub-technique identifier (e.g. 'T1566', 'T1566.001').",
+                    "type": "string",
+                    "pattern": "^T[0-9]{4}(\\.[0-9]{3})?$"
+                },
+                "name": {
+                    "description": "Human-readable technique name (e.g. 'Phishing').",
+                    "type": "string"
+                },
+                "tactic": {
+                    "description": "ATT&CK tactic the usage falls under (e.g. 'initial-access').",
+                    "type": "string"
+                }
+            }
+        },
+        "external_id": {
+            "title": "External Identifier",
+            "type": "object",
+            "required": ["source_name", "id"],
+            "additionalProperties": false,
+            "properties": {
+                "source_name": {
+                    "description": "Knowledge base or vendor the identifier belongs to (e.g. 'mitre-attack', 'malpedia', 'crowdstrike').",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "id": {
+                    "description": "The identifier in that knowledge base (e.g. 'G0007').",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "url": {
+                    "description": "Direct URL to the actor's entry in that knowledge base.",
+                    "type": "string",
+                    "format": "uri"
+                }
+            }
+        },
+        "relationship": {
+            "title": "Relationship",
+            "description": "A directed, typed link from one entity to another. Membership: individual member_of group. Group-to-group: affiliated_with, cooperates_with, successor_of. Deception: impersonates. Capability: uses / develops malware, tools, techniques or infrastructure; exploits CVEs; linked_to IOCs. Victimology: targets sectors, countries or organizations. Attribution: attributed_to a country or another actor.",
+            "type": "object",
+            "required": ["type", "source_ref", "target_ref"],
+            "additionalProperties": false,
+            "properties": {
+                "id": {
+                    "description": "Optional stable identifier for this relationship. When present it must be stable across batches (e.g. a UUIDv5 derived from type, source_ref and target_ref); when absent the server deduplicates by the (type, source_ref, target_ref) triple.",
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "type": {
+                    "description": "Semantics of the link, read as: source_ref <type> target_ref.",
+                    "type": "string",
+                    "enum": ["member_of", "affiliated_with", "cooperates_with", "successor_of", "attributed_to", "impersonates", "uses", "develops", "exploits", "targets", "linked_to"]
+                },
+                "source_ref": {
+                    "$ref": "#/$defs/entity_ref"
+                },
+                "target_ref": {
+                    "$ref": "#/$defs/entity_ref"
+                },
+                "description": {
+                    "description": "Free-text explanation of the relationship.",
+                    "type": "string"
+                },
+                "first_seen": {
+                    "description": "UTC timestamp of the earliest observation supporting this relationship.",
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "last_seen": {
+                    "description": "UTC timestamp of the most recent observation supporting this relationship.",
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "confidence": {
+                    "$ref": "#/$defs/confidence"
+                },
+                "asserted_by": {
+                    "description": "Who made this claim (e.g. 'mitre-attack', 'mandiant'), when it differs from the payload source.",
+                    "type": "string"
+                },
+                "references": {
+                    "description": "Reporting that supports this relationship.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/$defs/reference"
+                    }
+                }
+            },
+            "allOf": [
+                {
+                    "if": {
+                        "properties": {
+                            "type": {
+                                "const": "member_of"
+                            }
+                        },
+                        "required": ["type"]
+                    },
+                    "then": {
+                        "properties": {
+                            "source_ref": {
+                                "properties": {
+                                    "kind": {
+                                        "const": "actor"
+                                    }
+                                }
+                            },
+                            "target_ref": {
+                                "properties": {
+                                    "kind": {
+                                        "const": "actor"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                {
+                    "if": {
+                        "properties": {
+                            "type": {
+                                "const": "exploits"
+                            }
+                        },
+                        "required": ["type"]
+                    },
+                    "then": {
+                        "properties": {
+                            "target_ref": {
+                                "properties": {
+                                    "kind": {
+                                        "const": "cve"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                {
+                    "if": {
+                        "properties": {
+                            "type": {
+                                "const": "targets"
+                            }
+                        },
+                        "required": ["type"]
+                    },
+                    "then": {
+                        "properties": {
+                            "target_ref": {
+                                "properties": {
+                                    "kind": {
+                                        "enum": ["sector", "country", "organization"]
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "entity_ref": {
+            "title": "Entity Reference",
+            "description": "A reference to an entity on either end of a relationship. Actors in this payload are referenced by their actor id; external entities carry their natural identifier (CVE id, ATT&CK id, IOC value, ISO country code, or a name).",
+            "type": "object",
+            "required": ["kind", "id"],
+            "additionalProperties": false,
+            "properties": {
+                "kind": {
+                    "description": "What class of entity is being referenced.",
+                    "type": "string",
+                    "enum": ["actor", "malware", "tool", "campaign", "ioc", "cve", "technique", "sector", "country", "organization", "infrastructure"]
+                },
+                "id": {
+                    "description": "Identifier of the entity: an actor id from this payload, a CVE id, an ATT&CK technique id, the IOC value itself, an ISO 3166-1 alpha-2 country code, or the canonical name for kinds without formal identifiers.",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "subtype": {
+                    "description": "Finer classification within the kind: for ioc the indicator type (e.g. 'sha256', 'domain', 'ipv4', 'url'); for malware the class (e.g. 'ransomware', 'backdoor', 'loader').",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "Display name for the entity when the id alone is not human-readable.",
+                    "type": "string"
+                }
+            },
+            "allOf": [
+                {
+                    "if": {
+                        "properties": {
+                            "kind": {
+                                "const": "actor"
+                            }
+                        },
+                        "required": ["kind"]
+                    },
+                    "then": {
+                        "properties": {
+                            "id": {
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+                            }
+                        }
+                    }
+                },
+                {
+                    "if": {
+                        "properties": {
+                            "kind": {
+                                "const": "cve"
+                            }
+                        },
+                        "required": ["kind"]
+                    },
+                    "then": {
+                        "properties": {
+                            "id": {
+                                "pattern": "^CVE-[0-9]{4}-[0-9]{4,}$"
+                            }
+                        }
+                    }
+                },
+                {
+                    "if": {
+                        "properties": {
+                            "kind": {
+                                "const": "technique"
+                            }
+                        },
+                        "required": ["kind"]
+                    },
+                    "then": {
+                        "properties": {
+                            "id": {
+                                "pattern": "^T[0-9]{4}(\\.[0-9]{3})?$"
+                            }
+                        }
+                    }
+                },
+                {
+                    "if": {
+                        "properties": {
+                            "kind": {
+                                "const": "country"
+                            }
+                        },
+                        "required": ["kind"]
+                    },
+                    "then": {
+                        "properties": {
+                            "id": {
+                                "pattern": "^[A-Z]{2}$"
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "article": {
+            "title": "News Article",
+            "description": "A news article, blog post or report covering one or more actors in this payload. Articles are deduplicated server-side by url, so the same article seen in multiple batches is safe to resend.",
+            "type": "object",
+            "required": ["url", "title", "related_actors"],
+            "additionalProperties": false,
+            "properties": {
+                "id": {
+                    "description": "Unique identifier for this article record, used for de-duplication on the server side when the url alone is not stable.",
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "url": {
+                    "description": "Canonical URL of the article.",
+                    "type": "string",
+                    "format": "uri"
+                },
+                "title": {
+                    "description": "Headline of the article.",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "outlet": {
+                    "description": "Publication or site that ran the article (e.g. 'BleepingComputer', 'The Record').",
+                    "type": "string"
+                },
+                "authors": {
+                    "description": "Bylined authors of the article.",
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    "uniqueItems": true
+                },
+                "published_at": {
+                    "description": "UTC timestamp at which the article was published.",
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "updated_at": {
+                    "description": "UTC timestamp of the most recent revision of the article, if the outlet exposes one.",
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "language": {
+                    "description": "BCP 47 language tag of the article text (e.g. 'en', 'de').",
+                    "type": "string",
+                    "minLength": 2
+                },
+                "summary": {
+                    "description": "Short abstract of the article, either from the outlet or generated by the aggregator.",
+                    "type": "string"
+                },
+                "content": {
+                    "description": "Full extracted article text, when licensing and the aggregator allow carrying it.",
+                    "type": "string"
+                },
+                "related_actors": {
+                    "description": "Ids of the actors and groups in this payload the article covers.",
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+                    },
+                    "uniqueItems": true
+                },
+                "tags": {
+                    "description": "Free-form tags applied by the aggregator (e.g. 'ransomware', 'takedown', 'indictment').",
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    "uniqueItems": true
+                },
+                "provenance": {
+                    "$ref": "#/$defs/provenance"
+                }
+            }
+        },
+        "confidence": {
+            "title": "Confidence",
+            "description": "Qualitative confidence in a claim.",
+            "type": "string",
+            "enum": ["low", "medium", "high", "confirmed"]
+        },
+        "reference": {
+            "title": "Reference",
+            "type": "object",
+            "required": ["url"],
+            "additionalProperties": false,
+            "properties": {
+                "url": {
+                    "type": "string",
+                    "format": "uri"
+                },
+                "name": {
+                    "description": "Display name or title of the reference.",
+                    "type": "string"
+                },
+                "source": {
+                    "description": "Who supplied this reference.",
+                    "type": "string"
+                },
+                "tags": {
+                    "description": "Categorization of the reference content.",
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "enum": ["profile", "report", "analysis", "advisory", "indictment", "sanction", "news", "blog", "tool", "other"]
+                    },
+                    "uniqueItems": true
+                }
+            }
+        },
+        "provenance": {
+            "title": "Provenance",
+            "description": "Where and when the aggregator retrieved this specific record.",
+            "type": "object",
+            "required": ["retrieved_at"],
+            "additionalProperties": false,
+            "properties": {
+                "retrieved_at": {
+                    "description": "UTC timestamp at which the aggregator fetched this record from upstream.",
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "upstream_url": {
+                    "description": "Direct URL to the upstream record this was derived from.",
+                    "type": "string",
+                    "format": "uri"
+                },
+                "raw_hash": {
+                    "description": "SHA-256 hex digest of the raw upstream record, for change detection.",
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                }
+            }
+        }
+    }
+}
