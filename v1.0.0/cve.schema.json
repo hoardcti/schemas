@@ -2,9 +2,9 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "$id": "https://schema.hoardcti.com/v1.0.0/cve.schema.json",
     "title": "HoardCTI CVE Schema",
-    "description": "Standardized transport format for transferring one or more Common Vulnerabilities and Exposures (CVE) records from a CVE source aggregator to the HoardCTI central server.",
+    "description": "Standardized transport format for transferring a single Common Vulnerabilities and Exposures (CVE) record from a CVE source aggregator to the HoardCTI central server. Emitted as one object per JSONL line; multiple records are multiple lines.",
     "type": "object",
-    "required": ["schema_version", "source", "generated_at", "cves"],
+    "required": ["schema_version", "source", "generated_at", "cve"],
     "additionalProperties": false,
     "properties": {
         "schema_version": {
@@ -24,18 +24,9 @@
             "type": "string",
             "format": "uuid"
         },
-        "count": {
-            "description": "Number of CVE records in this payload. Must equal the length of the cves array if present.",
-            "type": "integer",
-            "minimum": 0
-        },
-        "cves": {
-            "description": "The CVE records being transferred.",
-            "type": "array",
-            "minItems": 1,
-            "items": {
-                "$ref": "#/$defs/cve"
-            }
+        "cve": {
+            "description": "The CVE record being transferred.",
+            "$ref": "#/$defs/cve"
         }
     },
     "$defs": {
