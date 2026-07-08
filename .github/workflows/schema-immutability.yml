@@ -1,0 +1,53 @@
+# Enforces schema immutability: once a schema file has been released
+# (merged to main), it can never be modified, renamed or deleted. Pull
+# requests may only ADD new schema files.
+#
+# The check diffs the PR against its merge base with the target branch,
+# so schemas created inside the PR itself can still be freely edited
+# until the PR is merged.
+#
+# NOTE: to actually block merging, mark this job as a required status
+# check in the branch protection / ruleset for main.
+name: schema-immutability
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Schemas are immutable
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          # Full history so the PR can be diffed against its merge base.
+          fetch-depth: 0
+
+      - name: Fail if released schema files were changed
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          base="origin/${{ github.base_ref }}"
+
+          # Modified, deleted, renamed or copied-over schema files. Any
+          # file matching these filters necessarily existed at the merge
+          # base, i.e. it was already released. Purely added (A) files
+          # are the only allowed change.
+          violations=$(git diff --name-status --diff-filter=MDRT "$base"...HEAD \
+            -- '*.schema.json' 'schema.json' '*/schema.json')
+
+          if [[ -n "$violations" ]]; then
+            echo "::error::Released schema files are immutable. This PR modifies, renames or deletes existing schema files:"
+            echo "$violations"
+            echo
+            echo "Schemas already on '${{ github.base_ref }}' cannot be changed."
+            echo "Create a new schema file (e.g. under a new version directory) instead."
+            exit 1
+          fi
+
+          echo "OK: no released schema files were modified, renamed or deleted."
